@@ -76,6 +76,10 @@ func ChainInfoWithRPCEndpoint(endpoint string) ChainInfo {
 				Address  string `json:"address"`
 				Provider string `json:"provider"`
 			} `json:"rest"`
+			GRPC []struct {
+				Address  string `json:"address"`
+				Provider string `json:"provider"`
+			} `json:"grpc"`
 		}{
 			RPC: []struct {
 				Address  string `json:"address"`
