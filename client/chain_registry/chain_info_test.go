@@ -7,6 +7,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestA(t *testing.T) {
+	fmt.Println(checkEndpointHealth("crescent.grpc.stakin-nodes.com:443"))
+	require.True(t, false)
+}
+
 func TestGetAllRPCEndpoints(t *testing.T) {
 	testCases := map[string]struct {
 		chainInfo         ChainInfo
@@ -76,6 +81,10 @@ func ChainInfoWithRPCEndpoint(endpoint string) ChainInfo {
 				Address  string `json:"address"`
 				Provider string `json:"provider"`
 			} `json:"rest"`
+			GRPC []struct {
+				Address  string `json:"address"`
+				Provider string `json:"provider"`
+			} `json:"grpc"`
 		}{
 			RPC: []struct {
 				Address  string `json:"address"`

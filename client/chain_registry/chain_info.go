@@ -2,10 +2,12 @@ package chain_registry
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -15,6 +17,10 @@ import (
 	"github.com/strangelove-ventures/lens/client"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+
+	tmtypes "github.com/cosmos/cosmos-sdk/client/grpc/tmservice"
 )
 
 type ChainInfo struct {
@@ -58,6 +64,10 @@ type ChainInfo struct {
 			Address  string `json:"address"`
 			Provider string `json:"provider"`
 		} `json:"rest"`
+		GRPC []struct {
+			Address  string `json:"address"`
+			Provider string `json:"provider"`
+		} `json:"grpc"`
 	} `json:"apis"`
 }
 
@@ -230,6 +240,54 @@ func (c ChainInfo) GetChainConfig(ctx context.Context) (*client.ChainClientConfi
 		Timeout:        "20s",
 		OutputFormat:   "json",
 		SignModeStr:    "direct",
-		Slip44:			c.Slip44,
+		Slip44:         c.Slip44,
 	}, nil
+}
+
+func (c ChainInfo) GetAllGRPCEndpoints() (out []string, err error) {
+	for _, endpoint := range c.Apis.GRPC {
+		out = append(out, endpoint.Address)
+	}
+
+	return
+}
+
+func (c ChainInfo) GetActiveGRPCEndpoint(ctx context.Context) (out string, err error) {
+	allGRPCEndpoints, err := c.GetAllGRPCEndpoints()
+	if err != nil {
+		return "", err
+	}
+
+	for _, endpoint := range allGRPCEndpoints {
+		if checkEndpointHealth(endpoint) {
+			return endpoint, nil
+		}
+	}
+	return "", errors.New("no active GRPC endpoint available")
+}
+
+func checkEndpointHealth(endpoint string) bool {
+	creds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: false})
+	conn, err := grpc.Dial(endpoint, grpc.WithTransportCredentials(creds))
+	if err != nil {
+		log.Printf("Failed to connect to %s: %v", endpoint, err)
+		return false
+	}
+	defer conn.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	client := tmtypes.NewServiceClient(conn)
+
+	result, err := client.GetSyncing(ctx, &tmtypes.GetSyncingRequest{})
+	if err != nil {
+		log.Printf("Health check failed for %s: %v", endpoint, err)
+		return false
+	}
+
+	if result.Syncing {
+		return false
+	}
+	return true
 }
