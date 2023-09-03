@@ -233,7 +233,7 @@ func (c ChainInfo) GetChainConfig(ctx context.Context) (*client.ChainClientConfi
 		RPCAddr:        rpc,
 		AccountPrefix:  c.Bech32Prefix,
 		KeyringBackend: "test",
-		GasAdjustment:  1.2,
+		GasAdjustment:  1.4,
 		GasPrices:      gasPrices,
 		KeyDirectory:   home,
 		Debug:          debug,
@@ -252,11 +252,22 @@ func (c ChainInfo) GetAllGRPCEndpoints() (out []string, err error) {
 	return
 }
 
+func shuffleArray(arr []string) {
+	// Iterate over the array from the last element to the first
+	// and swap each element with a randomly chosen element before it.
+	for i := len(arr) - 1; i > 0; i-- {
+		j := rand.Intn(i + 1)
+		arr[i], arr[j] = arr[j], arr[i]
+	}
+}
+
 func (c ChainInfo) GetActiveGRPCEndpoint(ctx context.Context) (out string, err error) {
 	allGRPCEndpoints, err := c.GetAllGRPCEndpoints()
 	if err != nil {
 		return "", err
 	}
+
+	shuffleArray(allGRPCEndpoints)
 
 	for _, endpoint := range allGRPCEndpoints {
 		if checkEndpointHealth(endpoint) {
